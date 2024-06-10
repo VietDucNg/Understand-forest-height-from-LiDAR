@@ -1,0 +1,518 @@
+---
+title: "Classify forest tiles by height metrics from LiDAR"
+author:
+- name: <br>Viet Nguyen
+  affiliation: Faculty of Forest and Environment <br> Eberswalde University for Sustainable Development
+  email: Duc.Nguyen@hnee.de
+date: "July, 2022"
+output:
+  html_document:
+    df_print: paged
+subtitle: This study aims to clustering (K-means) and classify (Random Forest) forest tiles based on height metrics caculated from LiDAR data, with PCA for dimenstion reduction.
+---
+\
+
+> 🛈 Information:
+This project was hosted at [GitHub](https://github.com/VietDucNg/Understand-forest-height-from-LiDAR).
+
+> 🗃️ Data:
+[20 LiDAR scanning tiles](https://github.com/VietDucNg/Understand-forest-height-from-LiDAR/tree/main/00_data/Mehrfachdownload_rIYYX7_2VX73u)
+
+```{r}
+# set working directory
+setwd("E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam")
+```
+
+\
+
+# 1. Introduction
+Most environmental data are highly complex and uncertain. Environmental data analysis contains cutting-edge methods and tools which is suitable for the needs of environmental sciences and associated fields, including descriptive and explorative statistic, machine learning techniques for clustering, classification, and regression. The past few decades have witnessed a remarkable increase in interest in these methods for environmental monitoring, modeling, and decision-making (Zhang, 2017).
+
+Light Detection and Ranging (LiDAR) is an active remote sensing technology that uses a sensor to produce laser pulses and uses ultra-accurate clocks to measure the return time for each beam as it travels between the sensor and targets. The location of each laser return is achieved by precise kinematic positioning using Global Navigation Satellite Systems (GNSS) and orientation characteristics received from an Inertial Measurement Unit (IMU). The increasing use of LiDAR technology has revolutionized the acquisition of precise three-dimensional and non-destructive forest structure measurements.
+
+Based on data analysis techniques, This study aims to classify forest tiles based on height metrics from LiDAR data, with PCA for dimenstion reduction, to get some understanding of the studied forest environment. To do that, a dataset of 27 height metrics for [20 LiDAR scanning tiles](https://github.com/VietDucNg/Understand-forest-height-from-LiDAR/tree/main/00_data/Mehrfachdownload_rIYYX7_2VX73u) was used. Principal Component Analysis (PCA) was performed over the 27 metrics to explore the latent dimensionality of the height dataset and select the most important principal components (PCs) carrying the most variance for further clustering and classification. The focus is on searching for any existing patterns of clustered data which could suggest more about groups of tiles that are similar in terms of height, by using unsupervised K-means clustering and supervised decision tree, random forest algorithm.
+
+## 1.1. Objectives
+
+This study conducted some specific tasks as follows:
+
+1.	Calculating 27 statistical metrics for the height data over 20 tiles
+2.	Performing PCA over the 27 metrics
+3.	Selecting the most useful PCs covering the most variance
+4.	Performing K-means clustering with selected PCs
+5.	Implementing decision tree classifier with selected PCs
+6.	Performing random forest classification with selected PCs 
+
+\
+
+# 2. MATERIAL AND METHOD
+## 2.1. Study area
+
+The study area covers an area of 20 km2 located in the Free State of Thuringia, central Germany (Fig. 1). The state covers 16,171 km2 with a population of about 2.1 million. Due to its extensive, dense forest, it has been referred to as "the green heart of Germany" since the 19th century (Wikipedia, 2022). Thuringia's original natural vegetation was a forest with beech as the main species. A blend of beech and spruce would be typical in the uplands. However, most of the forests are spruce and pine-planted, while most of the plains have been cleared and are being used for intensive agriculture. Since 1990, Thuringia's forests have been maintained to create tougher, more natural vegetation that is resistant to pests and disease (Wikipedia, 2022). The average daily high temperature of Thuringia, one of Germany's coldest regions, is only 12oC. The weather is generally consistent with that of Central Europe (Worlddata.info, 2022).
+
+![**Figure 1**. Study area within Thuringia and its location in Germany. The grid shows LiDAR scanning tiles over the state. The 20 LiDAR tiles of interest were marked in blue with tile ID (section 2.2). Digital evaluation model used as background from Copernicus Land Monitoring Service.](E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam/result/04_map/studyArea_map.png)
+
+## 2.2. LiDAR data
+
+The government of Thuringia, Geoportal of the Land Thuringia  , provides Digital Surface Model (DSM) based on 3D measurement data from airborne laser scanners for the entire state. The scanning data was divided into regular non-redundant tiles with an area of 1x1 km per tile. Data used in this study contains 20 tiles (20km2) (Figure 1). The data including coordinates and height information was provided in XYZ format. There are 4 tiles were collected from 2015 and the rest from 2019 (Appendix I). 
+
+## 2.3. Analysis
+
+This section describes the analysis procedures used in the study. The flow diagram outlines the methodology can be found in Figure 2. All calculations and analyses were conducted using the R environment with R studio 2022.07 and R version 4.2.1. Mapping was created by QGIS 3.24.
+
+![**Figure 2**. Flowchart describing the process of analyzing LiDAR data](E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam/result/flowChart.png)
+
+\
+
+# 3. RESULTS AND DISCUSSION
+## 3.1. Descriptive statistic
+
+```{r}
+#### prepare workspace
+folder_data = paste0(getwd(),"/00_data/Mehrfachdownload_rIYYX7_2VX73u/")
+folder_result = paste0(getwd(),"/result/")
+
+## import file xyz
+# get list of file
+file.list = list.files(path = folder_data, pattern = ".xyz")
+file.list
+
+# import files to a list
+data = lapply(paste0(folder_data,file.list), read.table)
+
+# name each dataframe (df) on the list
+names(data)
+names(data) = stringr::str_replace(file.list, pattern = ".xyz", replacement = "")
+names(data)
+
+# rename columns for each df and add tile column
+for (i in 1:length(data)) {
+  colnames(data[[i]]) = c('x','y','z')
+  data[[i]]$tile = names(data)[i]
+}
+
+# combine list of df to a single df
+data.df = do.call("rbind", data)
+data.df$tile_id = substr(data.df$tile,6,13)
+data.df
+```
+
+### Statistic metrics of the height data from 20 laser scanning tiles
+
+Table 1 below shows 27 statistic metrics calculated from height data of the 20 laser scanning tiles. Besides, the boxplot gives the first impression of differences in height data among 20 tiles.
+
+```{r}
+library(dplyr)
+library(moments)
+
+metric.df = data.df%>% group_by(tile_id)%>%
+  summarise(Mean = mean(z),
+            SD = sd(z),
+            Kurtosis = kurtosis(z),
+            Skewness = skewness(z),
+            Max = max(z),
+            Min = min(z),
+            Range = max(z)-min(z),
+            Interquartile = IQR(z),
+            quantile_5th = quantile(z, probs = 0.05),
+            quantile_10th = quantile(z, probs = 0.10),
+            quantile_15th = quantile(z, probs = 0.15),
+            quantile_20th = quantile(z, probs = 0.20),
+            quantile_25th = quantile(z, probs = 0.25),
+            quantile_30th = quantile(z, probs = 0.30),
+            quantile_35th = quantile(z, probs = 0.35),
+            quantile_40th = quantile(z, probs = 0.40),
+            quantile_45th = quantile(z, probs = 0.45),
+            quantile_50th = quantile(z, probs = 0.50),
+            quantile_55th = quantile(z, probs = 0.55),
+            quantile_60th = quantile(z, probs = 0.60),
+            quantile_65th = quantile(z, probs = 0.65),
+            quantile_70th = quantile(z, probs = 0.70),
+            quantile_75th = quantile(z, probs = 0.75),
+            quantile_80th = quantile(z, probs = 0.80),
+            quantile_85th = quantile(z, probs = 0.85),
+            quantile_90th = quantile(z, probs = 0.90),
+            quantile_95th = quantile(z, probs = 0.95))
+
+# see the table
+metric.df
+# Abbreviation: SD – standard deviation, Max – maximum, Min - Minimum
+```
+
+### Boxplot over height data from 20 laser scanning tiles
+
+```{r}
+library(ggplot2)
+
+ggplot(data.df, aes(x=z, y=tile_id))+
+  geom_boxplot() + theme_classic()+
+  labs(x = "Height", y="Tile ID", title ='Figure 3. Boxplots of height data from 20 laser scanning tiles', subtitle = '')
+```
+
+## 3.2. Principal Component Analysis
+
+PCA was performed over the 27 metrics (Table 1) to explore the latent dimensionality of the dataset. From that, the essential parts of the data that have more variation can be identified and selected for further clustering and classification. In other words, the variable that is better in differentiating the data into groups can be determined by PCA. Scree plot using the square of standard deviation to show how much variation each PC accounts for, PCs appeared in order of the amount of variation they cover (Fig. 4). 
+
+```{r}
+library(ggplot2)
+
+#### PCA
+# by default, prcomp() expects the samples to be rows and the attributes to be columns
+pca = prcomp(metric.df[2:28], center = TRUE, scale. = TRUE)
+
+# x contains the pCs for drawing a graph use first two columns (PCs) in x to draw a 2D plot
+plot(pca$x[,1], pca$x[,2])
+
+# calculate how much variation each PC accounts for by using the square of standard deviation
+pca.var <- pca$sdev^2 # value
+pca.var.per <- round(pca.var/sum(pca.var)*100, 1) # percentage
+
+# make a scree plot
+barplot(pca.var.per,ylab="Percent Variation" )
+title(xlab="Principal Component",main="Figure 4. Scree Plot showing amount of variation each PC capture", line = 1)
+```
+
+The result shows that PC1, PC2, PC3, PC4, PC5 and PC6 account for 83.1, 12.2, 2.5, 1.7, 0.4, 0.1 percentage of variation, respectively. Meanwhile, there is no variation accounted for by PC7 to PC20.
+
+Moreover, biplots of PC1-PC2, PC1-PC2, and PC2-PC3 are given to illustrate how metrics distribute to each PC and how metrics correlate with each other (Figure 5). The directions of the vectors tell which PC they tend to contribute to. For instance, from Figure 5a, it can be seen that a group of quantile metrics contribute most for PC1, while the metrics that contribute most for PC2 are range and interquartile. Moreover, the length of the vector refers to how strong the vectors (metrics) contribute to the PCs. Besides, when two vectors are close, forming a small angle, they present a positively correlated, e.g., quantile metrics in PC1 (Fig. 5a). Conversely, when they form a large angle (close to 180 degrees), they are negatively correlated, for example, skewness and kurtosis in PC1 (Fig. 5a). While if they form a 90-degree angle, they are probably not to be correlated, e.g., max and range in PC2 (Fig. 5c).
+
+
+```{r}
+library(ggbiplot)
+
+#### biplots
+pca.df <- data.frame(tile_id=metric.df$tile_id,
+                     X=pca$x[,1],
+                     Y=pca$x[,2])
+pca.df
+
+# pc1-pc2
+ggbiplot(pca, labels = metric.df$tile_id, obs.scale = 1, var.scale = 1)+
+  geom_point(color="blue")+
+  aes(vjust=1)+
+  ggtitle('Figure 5a. Biplots of PC1 - PC2')+
+  theme_bw()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  xlim(-8.5,8.5)+
+  ylim(-4,6)
+
+# pc2-pc3
+ggbiplot(pca, labels = metric.df$tile_id, choices = c(2,3), obs.scale = 1, var.scale = 1)+
+  geom_point(color='blue')+
+  aes(vjust=1)+
+  ggtitle('Figure 5b. Biplots of PC2 - PC3')+
+  theme_bw()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  ylim(-2,2)+
+  xlim(-4,5.5)
+
+# pc1-pc3
+ggbiplot(pca, labels = metric.df$tile_id, choices = c(1,3), obs.scale = 1, var.scale = 1)+
+  geom_point(color='blue')+
+  aes(vjust=1)+
+  ggtitle('Figure 5c. Biplots of PC1 - PC3')+
+  theme_bw()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  ylim(-3,3)+
+  xlim(-8.5,8.5)
+```
+
+As can be seen that PC1 and PC2 already account for more than 95% of the variation, while PC3 accounted for only 2.5 % of variation which is significantly smaller than that of PC2 (Fig. 4 and 5a). Therefore, only PC1 and PC2 are enough to describe the data and were used for further clustering and classification.
+
+```{r}
+ggplot(data=pca.df, aes(x=X, y=Y, label=tile_id)) +
+  geom_point(color="blue")+
+  geom_text(aes(vjust=1)) +
+  xlab(paste("PC1 - ", pca.var.per[1], "%", sep="")) +
+  ylab(paste("PC2 - ", pca.var.per[2], "%", sep="")) +
+  theme_bw() +
+  ggtitle("Figure 6. PCA plot using PC1 and PC2")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  xlim(-8.5,8.5)
+```
+
+Loading scores were used to see which metrics have the largest contribution to the PCs and how it affects where samples are plotted in the PCA plot (Figure 6). Metrics that push samples to the left side of the graph will have large negative values and variables that push samples to the right will have large positive values. Magnitudes of the loading scores refer to the significance of the contribution.
+
+```{r}
+# using loading scores to see which metrics have the largest effect
+# on where samples are plotted in the PCA plot
+# or contribute most to pc1.
+# prcomp() function calls the loading scores rotation
+# loading scores for PC1
+loading_scores <- pca$rotation[,1]
+# metrics that push sampes to the left side of the graph will have
+# large negative values and variables that push samples to the right will have
+# large positive values
+variable_scores <- abs(loading_scores) ## get the magnitudes, both side of variables
+variable_score_ranked <- sort(variable_scores, decreasing=TRUE)
+top_variables <- names(variable_score_ranked)
+
+top_variables
+
+## show the scores (and +/- sign)
+pca$rotation[top_variables,1] 
+
+# loading scores for PC2
+loading_scores2 <- pca$rotation[,2]
+# variables thta push sampes to the left side of the graph will have
+# large negative values and variables that push samples to the right will have
+# large positive values
+variable_scores2 <- abs(loading_scores2) ## get the magnitudes, both side of variables
+variable_score_ranked2 <- sort(variable_scores2, decreasing=TRUE)
+top_variables2 <- names(variable_score_ranked2)
+
+top_variables2
+
+## show the scores (and +/- sign)
+pca$rotation[top_variables2,1] 
+```
+
+
+![Table 2: 10 metrics contribute most to PC1 and PC2 and their loading score](E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam/result/05_PCA/loading_score.jpg)
+
+## 3.3. K-means clustering
+
+After dimension reduction by PCA, clustering of the selected PCs (PC1 and PC2) was performed. One of the most popular methods of clustering is the unsupervised K-means algorithm. The method requires choosing a fixed number of clusters (K) and then grouping data based on distance similarities. 
+
+Firstly, a proper number of clusters was determined by the so-called Elbow plot (Figure 7) which is similar to the Scree plot (Figure 4) in PCA. The Elbow plot shows the sum of squared distance between each point and the centroid in a cluster. The plot of the sum of squares with the K value resembles an elbow. The sum of squares values will begin to drop as the number of clusters rises. The highest sum of square value is at K = 1. When examining the graph, it is noticed that there is a point where the graph significantly changes, forming an elbow. The graph then begins to move nearly parallel to the X-axis from this point on. The best K value, or the optimal clusters, is the one that corresponds to this location. Looking at Figure 7, the number cluster of 3 may be optimal. However, for the testing reason, in this study number clusters of 2, 3, and 4 were analyzed.
+
+```{r}
+library(factoextra)
+
+# select two first PC
+pc = pca$x[,1:2]
+
+# calculate how many clusters needed using sum of squares (Elbow method)
+fviz_nbclust(pc, kmeans, method = "wss")+
+  labs(title = 'Figure7. Elbow plot for determining the proper number of clusters',
+       subtitle = '')
+```
+
+The algorithm randomly configures K centroid positions in the data space. After each distance calculation with all data points, the algorithm will optimize for the best position of the centroids to the middle of the clusters. The algorithm stops when no change in centroid position occurred or the best centroid position with minimum distance to all data points in the cluster was identified. Therefore, the results of K-means algorithm vary according to the randomly chosen starting centroids. In this study, K-means algorithm was applied to PC1 and PC2 data for 2, 3, and 4 clusters, with 100 sets of randomly starting centroids each (Figure 8).
+
+```{r}
+
+#### K-means clustering
+set.seed(10)
+kmeans.2 <- kmeans(pc, centers=2,nstart=100)
+kmeans.3 <- kmeans(pc, centers=3,nstart=100)
+kmeans.4 <- kmeans(pc, centers=4,nstart=100)
+print(kmeans.2)
+
+# Visualize the clustering algorithm results.
+rownames(pc) = metric.df$tile_id
+
+fviz_cluster(list(data=pc, cluster = kmeans.2$cluster))+
+  theme_bw()+ ggtitle("Figure 8a. K-means cluster plot with 2 clusters")+ xlim(-2,2)+ylim(-2,3)
+
+fviz_cluster(list(data=pc, cluster = kmeans.3$cluster))+
+  theme_bw()+ ggtitle("Figure 8b. K-means cluster plot with 3 clusters")+ xlim(-2,2)+ylim(-2,3)
+
+fviz_cluster(list(data=pc, cluster = kmeans.4$cluster))+
+  theme_bw()+ ggtitle("Figure 8c. K-means cluster plot with 4 clusters")+ xlim(-2,2)+ylim(-2,3)
+```
+
+It can be seen that the 3 clusters grouped by the K-means algorithm show an agreement with boxplots of the 20 tiles (Figure 9). The tiles with similarities in height distribution were grouped together.
+
+```{r}
+# compare with box-plot
+pc=cbind(pc, cluster=kmeans.3$cluster)
+cluster.df = data.df
+
+# create new column 'cluster' with corresponding tile
+tile_id = unique(cluster.df$tile_id)
+cluster = kmeans.3$cluster
+cluster.df$cluster = cluster[match(cluster.df$tile_id, tile_id)]
+cluster.df$cluster = as.character(cluster.df$cluster)
+
+ggplot(cluster.df, aes(x=z, y=tile_id, fill = cluster, alpha=0.5))+
+  geom_boxplot()+
+  scale_fill_manual(name="Cluster", 
+                     values = c("red","green","blue"))+
+  labs(x = "Height", y="Tile ID",title = 'Figure 9. Boxplots of height data from 20 laser scanning tiles \n grouped into 3 clusters by K-means algorithm', subtitle = '')+
+  theme_classic()
+```
+
+## 3.4. Decision tree
+
+Decision tree is a popular and powerful method for classification and regression. A decision tree is a type of tree structure that resembles a flowchart, where internal nodes present tests or yes-no questions on the attribute, branches denote the result of the question, and leaf nodes (or terminal nodes) show class labels (GeeksforGeeks, 2017). Figure 10 presents the decision tree that classifies 18 laser scanning tiles into 3 groups based on selected PCs values. With PC1 higher than or equal to -3.1, the tiles classified as group 1 if PC1 is smaller than 2.6. Otherwise, the tiles classified as group 1 if PC2 is higher than or equal to 2.5 and conversely as group 2. Meanwhile with PC1 smaller than 3.1, the tiles classified as group 3. The 2 remaining tiles were used as test data to validate the decision tree, an accuracy of 100% was achieved from validation.
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+# select two first PC
+pc = pca$x[,1:2]
+pc.df = as.data.frame(pc)
+pc.df$cluster = kmeans.3$cluster
+pc.df$tile_id = metric.df$tile_id
+
+# Set random seed to make results reproducible:
+set.seed(200)
+# split data into two 80% for training and 20% for testing
+sample <- sample(2, nrow(pc.df), replace=T, prob=c(0.8,0.2))
+train<- pc.df[sample==1,]
+test<- pc.df[sample==2,]
+nrow(train)
+nrow(test)
+
+# convert class to factor
+train$cluter = as.factor(train$cluster)
+
+# decision tree
+# minbucket: min number of observations in leaf notes
+# cp: complextity parameters
+decision_tree = rpart(cluster ~ PC1 + PC2, data = train,
+                      control =rpart.control(minsplit =1,minbucket=1, cp=0))
+
+# plot decision tree
+rpart.plot(decision_tree, main='Figure 10. Decision tree classifying 18 tiles into 3 groups \n from K-means clustering result')
+
+```
+
+## 3.5. Random Forest
+
+It can be seen that the decision tree method can suit any training data, providing 100% accuracy in any classification (section 3.4). This situation is known as “overfitting” when the decision tree performs perfectly with the training data used to create them but has low accuracy with a new dataset. It happens when a decision tree is constructed without consideration of limiting the tree size (number of leaves, splits, and depth) or pruning after training. Random forest, on the other hand, aggregation of decision trees avoids overfitting. Each decision tree in a random forest was built based on randomly selected observations and features. Since only a subset of the sample and a few predictors are used to construct each decision tree, resulting a wide variety of trees. The variety makes a random forest more effective than an individual decision tree, especially when it comes to classifying a new dataset.
+
+In this study, a random forest classifier was applied for the same training (18 tiles) and testing (2 tiles) dataset as the decision tree section. In random forest, tile groups were predicted based on PC1 and PC2. Figure 11 shows the error rate of random forest classification with the different numbers of trees. The red line presents the error rate when classifying tile group 1, the green line for tile group 2, the blue line for tile group 3 while the purple line for overall out-of-bag error (OOB). In general, it can be seen that the error rates decrease when the random forest has more trees, especially, the error rates stabilize after 300 trees. Therefore, 300 trees would be the optimal number of trees and would be used for further analysis.
+
+```{r}
+# select two first PC
+pc = pca$x[,1:2]
+pc.df = as.data.frame(pc)
+pc.df$cluster = kmeans.3$cluster
+pc.df$tile_id = metric.df$tile_id
+
+# Set random seed to make results reproducible:
+set.seed(200)
+# split data into two 80% for training and 20% for testing
+sample <- sample(2, nrow(pc.df), replace=T, prob=c(0.8,0.2))
+train<- pc.df[sample==1,]
+test<- pc.df[sample==2,]
+nrow(train)
+nrow(test)
+
+# convert class to factor
+train$cluster = as.factor(train$cluster)
+
+# load library
+library(randomForest)
+library(caret)
+
+# randomForest function
+## NOTE: If the thing we're trying to predict is a continuous number 
+## (i.e. "weight" or "height"), then by default, randomForest() will set 
+## "mtry", the number of variables to consider at each step, 
+## to the total number of variables divided by 3 (rounded down), or to 1 
+## (if the division results in a value less than 1).
+## If the thing we're trying to predict is a "factor" (i.e. either "yes/no"
+## or "ranked"), then randomForest() will set mtry to 
+## the square root of the number of variables (rounded down to the next
+## integer value).
+## Also, by default random forest generates 500 trees
+
+model.rf = randomForest(cluster ~ PC1 + PC2,
+                        data = train,
+                        keep.forest = T,
+                        importance = T,
+                        proximity = T)
+model.rf
+
+# visualize the out-of-bag error
+# create a dataframe for visulizing the error rate
+oob.df = data.frame(
+  Tree=rep(1:nrow(model.rf$err.rate), times=4),
+  Type = rep(c('OOB','Group 1',' Group 2','Group 3'), each=nrow(model.rf$err.rate)),
+  Error=c(model.rf$err.rate[,'OOB'], model.rf$err.rate[,'1'],
+          model.rf$err.rate[,'2'],model.rf$err.rate[,'3'])
+)
+
+ggplot(data=oob.df,aes(x=Tree, y=Error))+
+  geom_line(aes(color=Type))+theme_bw()+ 
+  labs(x='Number of trees',title = 'Figure 11. Error rates of random forest classification with different numbers of tree', subtitle = '')+
+  ylim(0,0.75)
+
+```
+
+```{r}
+# Now check to see if the random forest better with different parameters
+# by comparing OOB value
+# try different ntree of 200,400,600,800, and 1000
+# try different mtry of 1, 2
+oob=c()
+ntree = c(100,200,300,400,500,600,700,800,900,1000)
+for (tree in ntree) {
+  for (nvariable in 1:2) {
+    model.rf = randomForest(cluster ~ PC1 + PC2,
+                            data = train,
+                            keep.forest = T,
+                            importance = TRUE,
+                            proximity =T,
+                            mtry = nvariable,
+                            ntree = tree)
+    print(paste0("ntree = ",tree))
+    print(paste0('mtry = ',nvariable))
+    oob[length(oob)+1] = model.rf$err.rate[nrow(model.rf$err.rate),1]
+    oob[length(oob)]
+  }
+}
+
+# adding colnames and rownnames for better visualization
+oob = matrix(oob, ncol=2, byrow = T)
+colnames(oob) = c('mtry = 1','mtry = 2')
+rownames(oob) = c('ntree = 100','ntree = 200','ntree = 300','ntree = 400','ntree = 500','ntree = 600','ntree = 700','ntree = 800','ntree = 900','ntree = 1000')
+
+# see table result
+oob
+```
+
+```{r}
+# final random forest with chosen parameter of mtry = 2 and ntree = 500
+model.rf = randomForest(cluster ~ PC1 + PC2,
+                        data = train,
+                        keep.forest = T,
+                        importance = TRUE, 
+                        mtry = 2,
+                        ntree = 500)
+
+model.rf
+
+```
+
+The random forest of 500 trees performs better with 1 variable than 2 variables at each step when building each tree, the corresponding OOB values are 0.166 and 0.332. The Mean Decrease Accuracy plot shows the amount of accuracy the model drops if removing each variable. The PC1 reveals more contribution to the model than PC2 (Fig. 12). The Mean Decrease Gini shows each variable contributes to the purity of the nodes and leaves. PC1 also expresses the more important impact on the purity of the random forest (Fig. 12). It is understandable as PC1 covers the most variation in the data identified by PCA, which is valuable to be used for separating data into groups. Similar to the decision tree approach, the random forest also acquired 100% accuracy with the 2 testing tiles.
+
+```{r}
+# tree nodes distributions
+hist(treesize(model.rf))
+
+# plot importance of each predictor variables
+varImpPlot(model.rf, main = 'Figure 12.  Variable importance plot for the random forest')
+
+ # classify the test dataset
+prediction<-predict(model.rf, test ,type = 'class')
+
+# accuracy assessment
+# confusionMatrix(prediction, test$cluster)
+```
+
+\
+
+# Appendix I. Discription of the LiDAR data
+
+![Table 3. Information of the LiDAR data](E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam/result/appendix1.png)
+
+\
+
+![Figure 13. Cyclic acquisition of airborne laser scanning in Thuringia.](E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam/result/appendix2.png)
+
+\
+
+# References
+GeeksforGeeks. (2017). Decision Tree - GeeksforGeeks. https://www.geeksforgeeks.org/decision-tree/
+
+Wikipedia (Ed.). (2022). Thuringia. https://en.wikipedia.org/w/index.php?title=Thuringia&oldid=1098601799
+
+Worlddata.info. (2022, July 19). Climate: Thuringia, Germany. https://www.worlddata.info/europe/germany/climate-thuringia.php
+
+Zhang, Z. (2017). Environmental data analysis: Methods and applications. De Gruyter. https://doi.org/10.1515/9783110424904
+

@@ -1,0 +1,108 @@
+---
+title: "Understand forest height from LiDAR"
+subtitle: 'Study project on Environmental Data Analysis, this study aims to explore the height data from airborne LiDAR scanning and get some understanding of the forest environment'
+
+author: 
+  - name: '<br>Viet Nguyen'
+    affiliation: 'Faculty of Forest and Environment <br> Eberswalde University for Sustainable Development'
+    email: 'Duc.Nguyen@hnee.de'
+
+date: 'July, 2022'
+
+output: html_notebook
+---
+\
+
+> 🛈 Information:
+This project was hosted at [GitHub](https://github.com/VietDucNg/Understand-forest-height-from-LiDAR). For more information, refer to this [report](https://github.com/VietDucNg/Understand-forest-height-from-LiDAR/blob/main/result/EDA_report_Viet.pdf).
+
+> 🗃️ Data:
+[20 LiDAR scanning tiles](https://github.com/VietDucNg/Understand-forest-height-from-LiDAR/tree/main/00_data/Mehrfachdownload_rIYYX7_2VX73u)
+
+```{r}
+# set working directory
+setwd("E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam")
+```
+
+\
+
+# 1. Introduction
+Most environmental data are highly complex and uncertain. Environmental data analysis contains cutting-edge methods and tools which is suitable for the needs of environmental sciences and associated fields, including descriptive and explorative statistic, machine learning techniques for clustering, classification, and regression. The past few decades have witnessed a remarkable increase in interest in these methods for environmental monitoring, modeling, and decision-making (Zhang, 2017).
+
+Light Detection and Ranging (LiDAR) is an active remote sensing technology that uses a sensor to produce laser pulses and uses ultra-accurate clocks to measure the return time for each beam as it travels between the sensor and targets. The location of each laser return is achieved by precise kinematic positioning using Global Navigation Satellite Systems (GNSS) and orientation characteristics received from an Inertial Measurement Unit (IMU). The increasing use of LiDAR technology has revolutionized the acquisition of precise three-dimensional and non-destructive forest structure measurements.
+
+Based on data analysis techniques, this study aims to explore the height data from airborne LiDAR scanning and get some understanding of the studied forest environment. To do that, a dataset of 27 height metrics for [20 LiDAR scanning tiles](https://github.com/VietDucNg/Understand-forest-height-from-LiDAR/tree/main/00_data/Mehrfachdownload_rIYYX7_2VX73u) was used. Principal Component Analysis (PCA) was performed over the 27 metrics to explore the latent dimensionality of the height dataset and select the most important principal components (PCs) carrying the most variance for further clustering and classification. The focus is on searching for any existing patterns of clustered data which could suggest more about groups of tiles that are similar in terms of height, by using unsupervised K-means clustering and supervised decision tree, random forest algorithm.
+
+## 1.1. Objectives
+
+This study conducted some specific tasks as follows:
+
+1.	Calculating 27 statistical metrics for the height data over 20 tiles
+2.	Performing PCA over the 27 metrics
+3.	Selecting the most useful PCs covering the most variance
+4.	Performing K-means clustering with selected PCs
+5.	Implementing decision tree classifier with selected PCs
+6.	Performing random forest classification with selected PCs 
+
+\
+
+# 2. MATERIAL AND METHOD
+## 2.1. Study area
+
+The study area covers an area of 20 km2 located in the Free State of Thuringia, central Germany (Fig. 1). The state covers 16,171 km2 with a population of about 2.1 million. Due to its extensive, dense forest, it has been referred to as "the green heart of Germany" since the 19th century (Wikipedia, 2022). Thuringia's original natural vegetation was a forest with beech as the main species. A blend of beech and spruce would be typical in the uplands. However, most of the forests are spruce and pine-planted, while most of the plains have been cleared and are being used for intensive agriculture. Since 1990, Thuringia's forests have been maintained to create tougher, more natural vegetation that is resistant to pests and disease (Wikipedia, 2022). The average daily high temperature of Thuringia, one of Germany's coldest regions, is only 12oC. The weather is generally consistent with that of Central Europe (Worlddata.info, 2022).
+
+![**Figure 1**. Study area within Thuringia and its location in Germany. The grid shows LiDAR scanning tiles over the state. The 20 LiDAR tiles of interest were marked in blue with tile ID (section 2.2). Digital evaluation model used as background from Copernicus Land Monitoring Service.](E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam/result/04_map/studyArea_map.png)
+
+## 2.2. LiDAR data
+
+The government of Thuringia, Geoportal of the Land Thuringia  , provides Digital Surface Model (DSM) based on 3D measurement data from airborne laser scanners for the entire state. The scanning data was divided into regular non-redundant tiles with an area of 1x1 km per tile. Data used in this study contains 20 tiles (20km2) (Figure 1). The data including coordinates and height information was provided in XYZ format. There are 4 tiles were collected from 2015 and the rest from 2019 (Appendix I). 
+
+## 2.3. Analysis
+
+This section describes the analysis procedures used in the study. The flow diagram outlines the methodology can be found in Figure 2. All calculations and analyses were conducted using the R environment with R studio 2022.07 and R version 4.2.1. Mapping was created by QGIS 3.24.
+
+![**Figure 2**. Flowchart describing the process of analyzing LiDAR data](E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam/result/flowChart.png)
+
+\
+
+# 3. RESULTS AND DISCUSSION
+## 3.1. Descriptive statistic
+
+```{r}
+# prepare workspace
+folder_data = paste0(getwd(),"/00_data/Mehrfachdownload_rIYYX7_2VX73u/")
+folder_result = paste0(getwd(),"/result/")
+
+#### import file xyz
+# get list of file
+file.list = list.files(path = folder_data, pattern = ".xyz")
+file.list
+
+# import files to a list
+data = lapply(paste0(folder_data,file.list), read.table)
+names(data) = stringr::str_replace(file.list, pattern = ".xyz", replacement = "")
+
+
+```
+
+
+
+
+Table 1 shows 27 statistic metrics calculated from height data of the 20 laser scanning tiles. Besides, the boxplot gives the first impression of differences in height data among 20 tiles (Fig. 3).
+
+
+
+
+
+
+
+
+# References
+GeeksforGeeks. (2017). Decision Tree - GeeksforGeeks. https://www.geeksforgeeks.org/decision-tree/
+
+Wikipedia (Ed.). (2022). Thuringia. https://en.wikipedia.org/w/index.php?title=Thuringia&oldid=1098601799
+
+Worlddata.info. (2022, July 19). Climate: Thuringia, Germany. https://www.worlddata.info/europe/germany/climate-thuringia.php
+
+Zhang, Z. (2017). Environmental data analysis: Methods and applications. De Gruyter. https://doi.org/10.1515/9783110424904
+

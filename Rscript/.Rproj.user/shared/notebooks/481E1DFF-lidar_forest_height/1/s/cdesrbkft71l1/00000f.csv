@@ -1,0 +1,4 @@
+"0","# set working directory
+setwd(""E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam"")
+"
+"2","Warning: The working directory was changed to E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."

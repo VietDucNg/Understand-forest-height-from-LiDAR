@@ -1,7 +1,7 @@
 .libPaths()
 
 getwd()
-setwd("E:/OneDrive - Hochschule für nachhaltige Entwicklung Eberswalde/01_study/03_Msc_Forest_Information_Technology/04_semester_4/Environmental_data_analysis/exam")
+setwd("E:/OneDrive_HNEE/01_study/03_Master_FIT/04_semester_4/Environmental_data_analysis/exam")
 getwd()
 
 folder_data = paste0(getwd(),"/00_data/Mehrfachdownload_rIYYX7_2VX73u/")
